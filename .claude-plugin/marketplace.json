@@ -1,0 +1,17 @@
+{
+  "name": "mcpserver-grok-local",
+  "owner": {
+    "name": "Payton Byrd (The Sharp Ninja)",
+    "url": "https://github.com/sharpninja"
+  },
+  "metadata": {
+    "description": "Local marketplace for McpServer Grok plugin."
+  },
+  "plugins": [
+    {
+      "name": "mcpserver-grok",
+      "description": "Connect Grok CLI/TUI agents to McpServer for TODO management, session logging, requirements tracking, and GraphRAG",
+      "source": "./"
+    }
+  ]
+}

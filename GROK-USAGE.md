@@ -1,0 +1,71 @@
+# McpServer Grok Plugin — Usage for Grok 4.3 Coding Agent CLI / TUI
+
+This directory is a fork/adaptation of `mcpserver-claude-code-plugin` for the **Grok 4.3** interactive CLI / TUI (and compatible Grok agents).
+
+It provides:
+
+- Native Grok `SKILL.md` files under `skills/` (todo, session, requirements, graphrag, workspace).
+- Full contract parity with the McpServer REPL (`workflow.*` namespaces) via optional `mcpserver-repl --agent-stdio`.
+- Hook scripts and lib/ (bash reference implementation + pwsh emphasis for this workspace).
+- Offline cache support and marker bootstrap logic (signature + nonce) exactly as required by `AGENTS-README-FIRST.yaml`.
+
+## Recommended Loading for Grok
+
+1. Copy or symlink the contents of `skills/` into your personal Grok skills location (`~/.grok/skills` or a marketplace plugin directory).
+2. Grok will discover the skills on next start / relevant prompt (e.g. "start session", "create a todo", "list requirements").
+3. For full session logging, TODO, and requirements features, ensure `mcpserver-repl` (the dotnet global tool) is available on PATH.
+
+Preferred runtime in this workspace: **PowerShell 7+ (`pwsh.exe`)** + the existing `McpSession.psm1`, `McpTodo.psm1`, `McpContext.psm1` modules. The bash hooks are retained for compatibility with Claude/Codex/Copilot agents that use the original plugin.
+
+## Bootstrap (Marker + Signature + Nonce)
+
+The skills and hooks implement (or guide) the exact flow required by the workspace marker:
+
+- Read `AGENTS-README-FIRST.yaml`
+- Verify HMAC-SHA256 signature using the workspace API key
+- Call `/health?nonce=...` and confirm echo
+- Only then open sessions, create TODOs, etc.
+
+See `hooks/scripts/session-start.sh` (and the Grok skills) for the reference implementation. On Grok, the skills perform equivalent checks where possible and fall back gracefully to `MCP_UNTRUSTED` / local-only mode when the server is unavailable (as required by policy).
+
+## Session / Turn Lifecycle (GrokCode)
+
+Use the **session** skill (or the underlying `workflow.sessionlog.*` methods) with the canonical naming:
+
+- SessionId: `GrokCode-YYYYMMDDTHHMMSSZ-slug`
+- RequestId: `req-YYYYMMDDTHHMMSSZ-slug`
+- `sourceType` / agent prefix: `GrokCode` (Pascal-Case)
+
+All design decisions must be logged as `appendDialog` (category: decision) **and** `appendActions` (type: design_decision).
+
+## TODO / Requirements
+
+The **todo** and **requirements** skills implement the full contract (create, query, streaming plan/implement/status, FR/TR/TEST mapping, canonical ID rules `^[A-Z]+-[A-Z0-9]+-\d{3}$` or `ISSUE-\d+`).
+
+Internal checklist state stays local by default. Enable `workflow.todo.internal.enable` only when you want MCP TODOs as the backing store.
+
+## GraphRAG & Workspace
+
+Ad-hoc ingestion and workspace policy helpers are provided via the respective skills.
+
+## Differences from the Original Claude Code Plugin
+
+- Primary interface is Grok `SKILL.md` files (not Claude hooks/skills system).
+- Strong emphasis on `pwsh.exe` and the workspace PowerShell modules.
+- Bash hooks and `mcpserver-repl` transport retained for contract fidelity and multi-agent use.
+- Cache/ is shipped clean; runtime state lives in the user's environment.
+- No assumption of `CLAUDE_PLUGIN_ROOT` or Claude-specific env vars (Grok equivalents are `PLUGIN_ROOT` / `MCP_GROK_*`).
+
+## Development / Validation
+
+- Original `tests/` (bats) are retained from the source for contract regression coverage.
+- Grok-specific validation: load the SKILL.md files, exercise the core methods via `mcpserver-repl` or the PowerShell modules, and confirm marker bootstrap + session/turn lifecycle.
+- See `Plugin-Validation-Testing-Plan.md` (source document, with Grok notes added).
+
+## License
+
+MIT (same as source).
+
+---
+
+Maintained as part of the McpServer workspace agent plugin ecosystem. The Grok contract has been registered in `MarkerFileService.BuildDefaultAgentPlugins`. After the next McpServer restart, `AGENTS-README-FIRST.yaml` will include the `Grok` entry and instruct GrokCode agents to bootstrap `mcpserver-grok-plugin` automatically.
