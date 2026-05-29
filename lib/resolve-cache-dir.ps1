@@ -47,7 +47,9 @@ function Resolve-McpCacheDir {
         }
     }
 
-    $pluginRoot = if ($env:CLAUDE_PLUGIN_ROOT) {
+    $pluginRoot = if ($env:GROK_PLUGIN_ROOT) {
+        $env:GROK_PLUGIN_ROOT
+    } elseif ($env:CLAUDE_PLUGIN_ROOT) {
         $env:CLAUDE_PLUGIN_ROOT
     } else {
         Split-Path -Parent $script:ResolveCacheDirScriptDir
