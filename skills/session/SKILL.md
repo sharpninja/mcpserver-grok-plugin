@@ -8,9 +8,27 @@ version: 0.1.0
 
 ## Overview
 
-To manage agent session logs, use the `workflow.sessionlog.*` REPL command namespace via `mcpserver-repl --agent-stdio`. Direct stdio input must be one single-line JSON request envelope per message, not formatted YAML. Session logging captures agent activity, reasoning dialog, file operations, and design decisions as a structured audit trail.
+Session logging captures agent activity, reasoning dialog, file operations, and design decisions as a structured audit trail.
 
-Most session management is automated by the plugin hooks in `hooks/`. This skill covers manual operations, history queries, and the full lifecycle for agents that need direct control.
+### Use the shim, not raw stdio (GrokCode)
+
+On Grok the plugin hooks in `hooks/` do **not** run automatically (they use the Claude Code hook format). So you drive the session lifecycle yourself. Do this through the plugin shim, never by hand-piping envelopes to `mcpserver-repl --agent-stdio`:
+
+```pwsh
+pwsh -NoProfile -File "$env:GROK_PLUGIN_ROOT\lib\repl-invoke.ps1" -Method <method> -ParamsYaml @'
+<yaml params>
+'@
+```
+
+(Bash equivalent: `source "$GROK_PLUGIN_ROOT/lib/repl-invoke.sh" && repl_invoke "<method>" "<yaml params>"`.)
+
+Why the shim and not raw stdio:
+
+- `workflow.sessionlog.beginTurn` and `openSession` are **not server routes**. Calling them raw returns `method_invocation_error` / `method_not_found`. The shim treats them as local no-ops and tracks turn state in `cache/current-turn.yaml`.
+- Persisting a turn goes through `client.SessionLog.SubmitAsync`, which is strict: `actions[].order` must be an unquoted integer (`order: 1`, never `order: "1"`) or you get `JSON value could not be converted to System.Int32`. The shim builds the envelope with correct types.
+- There is no `session.init` method. Bootstrap with `workflow.sessionlog.bootstrap` only.
+
+The YAML envelope blocks below document the wire contract each method maps to. Pass the `params:` body to `-ParamsYaml`; the shim wraps it in the request envelope for you.
 
 ## Identifier Naming Conventions
 
@@ -70,10 +88,10 @@ payload:
   requestId: req-20260409T120001Z-open-001
   method: workflow.sessionlog.openSession
   params:
-    agent: ClaudeCode
-    sessionId: ClaudeCode-20260409T120001Z-implement-auth
+    agent: GrokCode
+    sessionId: GrokCode-20260409T120001Z-implement-auth
     title: Implement JWT authentication
-    model: claude-sonnet-4-6
+    model: grok-4.3
 ```
 
 ```yaml
@@ -81,7 +99,7 @@ type: result
 payload:
   requestId: req-20260409T120001Z-open-001
   result:
-    sessionId: ClaudeCode-20260409T120001Z-implement-auth
+    sessionId: GrokCode-20260409T120001Z-implement-auth
     started: 2026-04-09T12:00:01Z
 ```
 
@@ -234,7 +252,7 @@ payload:
   requestId: req-20260409T120008Z-history-001
   method: workflow.sessionlog.queryHistory
   params:
-    agent: ClaudeCode
+    agent: GrokCode
     limit: 10
     offset: 0
 ```
@@ -245,10 +263,10 @@ payload:
   requestId: req-20260409T120008Z-history-001
   result:
     sessions:
-      - agent: ClaudeCode
-        sessionId: ClaudeCode-20260409T120001Z-implement-auth
+      - agent: GrokCode
+        sessionId: GrokCode-20260409T120001Z-implement-auth
         title: Implement JWT authentication
-        model: claude-sonnet-4-6
+        model: grok-4.3
         started: 2026-04-09T12:00:01Z
         lastUpdated: 2026-04-09T12:30:00Z
         status: completed

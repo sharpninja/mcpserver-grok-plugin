@@ -77,13 +77,15 @@ if ! full_bootstrap 2>/dev/null; then
     exit 0
 fi
 
-# Build session ID
-SESSION_ID="ClaudeCode-$(date -u +%Y%m%dT%H%M%SZ)-plugin"
+# Build session ID. Agent identity defaults to GrokCode for this fork; override
+# with MCP_AGENT_NAME for other hosts.
+AGENT_NAME="${MCP_AGENT_NAME:-GrokCode}"
+SESSION_ID="${AGENT_NAME}-$(date -u +%Y%m%dT%H%M%SZ)-plugin"
 
 # Open session via REPL
-SESSION_PARAMS="agent: ClaudeCode
+SESSION_PARAMS="agent: ${AGENT_NAME}
 sessionId: ${SESSION_ID}
-title: Claude Code plugin session"
+title: ${AGENT_NAME} plugin session"
 
 SESSION_RESPONSE=""
 PREVIOUS_REPL_TIMEOUT="${REPL_TIMEOUT:-}"

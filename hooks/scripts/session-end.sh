@@ -36,7 +36,7 @@ fi
 
 # Complete the session turn if we have a session ID
 if [ -n "$SESSION_ID" ]; then
-    CLOSE_PARAMS="agent: ClaudeCode
+    CLOSE_PARAMS="agent: ${MCP_AGENT_NAME:-GrokCode}
 sessionId: ${SESSION_ID}
 status: completed"
     repl_invoke "workflow.sessionlog.closeSession" "$CLOSE_PARAMS" >/dev/null 2>&1 || true

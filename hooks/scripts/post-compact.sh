@@ -40,7 +40,7 @@ fi
 # Query recent session history
 HISTORY_CONTEXT=""
 if [ -n "$SESSION_ID" ]; then
-    HISTORY_PARAMS="agent: ClaudeCode
+    HISTORY_PARAMS="agent: ${MCP_AGENT_NAME:-GrokCode}
 sessionId: ${SESSION_ID}"
     HISTORY_CONTEXT=$(repl_invoke "workflow.sessionlog.getHistory" "$HISTORY_PARAMS" 2>/dev/null || echo "")
 fi

@@ -33,7 +33,7 @@ fi
 
 # Update the session turn with compaction tag before compacting
 if [ -n "$SESSION_ID" ]; then
-    UPDATE_PARAMS="agent: ClaudeCode
+    UPDATE_PARAMS="agent: ${MCP_AGENT_NAME:-GrokCode}
 sessionId: ${SESSION_ID}
 tags:
   - pre-compact
