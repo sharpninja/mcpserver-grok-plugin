@@ -24,8 +24,8 @@ fi
 PLAN_FILE="${TOOL_INPUT:-${1:-}}"
 
 if [ -z "$PLAN_FILE" ] || [ ! -f "$PLAN_FILE" ]; then
-    # Nothing to do — no plan file provided
-    printf '{"hookSpecificOutput":{"status":"skipped","reason":"no plan file"}}\n'
+    # Nothing to do - no plan file provided
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","status":"skipped","reason":"no plan file"}}\n'
     exit 0
 fi
 
@@ -62,5 +62,5 @@ cat >> "$PLAN_MAP" << YAML
     createdAt: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 YAML
 
-printf '{"hookSpecificOutput":{"status":"created","todoId":"%s","title":"%s"}}\n' \
+printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","status":"created","todoId":"%s","title":"%s"}}\n' \
     "$TODO_ID" "$PLAN_TITLE"
