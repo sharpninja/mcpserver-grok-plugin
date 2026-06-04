@@ -8,7 +8,7 @@ version: 0.1.0
 
 ## Overview
 
-To manage functional requirements (FR), technical requirements (TR), test requirements (TEST), and their traceability mappings, use the Grok skills in this plugin (or the REPL transport) for the `workflow.requirements.*` namespace. The original hook/wrapper logic is retained for cross-agent compatibility. Do not substitute raw REST calls for normal requirements work when the plugin is active.
+To manage functional requirements (FR), technical requirements (TR), test requirements (TEST), and their traceability mappings, use the Grok skills in this plugin (or the REPL transport) for the `workflow.requirements.*` namespace. The original hook/wrapper logic is retained for cross-agent compatibility. Do not substitute raw REST calls, generic `mcpserver-repl --agent-stdio`, helper modules, or another agent's plugin for normal requirements work when the plugin is active.
 
 The plugin wrapper validates documented params and emits single-line JSON to REPL stdio. Any direct REPL diagnostic call must use one single-line JSON request envelope, not formatted YAML.
 

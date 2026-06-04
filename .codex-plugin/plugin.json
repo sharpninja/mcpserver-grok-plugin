@@ -10,6 +10,7 @@
   "repository": "https://github.com/sharpninja/mcpserver-grok-plugin",
   "license": "MIT",
   "keywords": ["mcp", "session-log", "grok", "todo", "requirements"],
+  "skillsPath": "skills",
   "hooks": {
     "sessionStart": [
       {
