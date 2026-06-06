@@ -8,7 +8,7 @@ Connect [Grok 4.3](https://x.ai) coding agent CLI / TUI to [McpServer](https://g
 - **Session hooks** — automatic session creation, turn tracking, context reload after compaction
 - **Plan tracking** — auto-creates MCP TODO when a plan is approved, syncs updates on plan edits
 - **Offline resilience** — local YAML cache for writes when MCP server is unavailable, automatic flush on reconnect
-- **Core skills**: TODO, Session Log, Requirements, GraphRAG, Workspace — implemented as native Grok skills (SKILL.md) with optional `mcpserver-repl --agent-stdio` REPL transport for full contract parity.
+- **Core skills**: TODO, Session Log, Requirements, GraphRAG, Workspace — implemented as native Grok skills (SKILL.md), with a plugin-declared Streamable HTTP MCP server for discoverable MCP tools and `lib\repl-invoke.ps1` / `lib/repl-invoke.sh` helpers for workflow shim methods.
 
 ## Prerequisites
 
@@ -29,10 +29,12 @@ The plugin auto-installs `mcpserver-repl` (dotnet global tool) from GitHub relea
 
 ## How It Works
 
-1. Grok loads the skills from this plugin (or a marketplace copy) into `~/.grok/skills`.
+1. Grok loads the enabled plugin descriptor, skills, hooks, and MCP server declaration from this plugin (or a marketplace copy).
 2. On session start / first relevant prompt, the skills perform (or guide) marker discovery, HMAC-SHA256 signature verification, and health nonce check exactly as required by the workspace `AGENTS-README-FIRST.yaml`.
-3. Session and turn lifecycle is recorded via the Session skill (workflow.sessionlog.*) or native Grok hook integration.
-4. All core operations (TODO, session log, requirements, GraphRAG) are available as Grok skills with full parity to the McpServer REPL contract. Optional REPL transport remains available for advanced/ streaming scenarios.
+3. Session and turn lifecycle is recorded via the Session skill (`workflow.sessionlog.*`) or native Grok hook integration.
+4. Discoverable MCP tools come from the Streamable HTTP endpoint in `.mcp.json` and use native names such as `sessionlog_*`, `todo_*`, and `requirements_*`. All core operations (TODO, session log, requirements, GraphRAG) remain available as Grok skills with parity to the McpServer REPL contract.
+
+`workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` are plugin shim/REPL method names, not literal Grok `search_tool` results. If a Grok session has only `pwsh` available, invoke the plugin shim through PowerShell (`lib\repl-invoke.ps1`) instead of searching for those method names as tools.
 
 ## Skills (Grok-native + REPL parity)
 
@@ -43,7 +45,7 @@ The plugin provides Grok SKILL.md files for:
 - **graphrag** — ad-hoc entity/relationship ingestion and querying.
 - **workspace** — context and policy helpers.
 
-All map to the same `workflow.*` namespaces as the original REPL contract for full compatibility. Grok can invoke them directly via its skill system; the original REPL transport is retained for power users and cross-agent parity.
+All map to the same `workflow.*` namespaces as the original REPL contract for full compatibility. Grok can invoke them directly via its skill system or through the plugin shim; discoverable MCP/tool names may differ from these REPL method names.
 
 ## Offline Cache
 

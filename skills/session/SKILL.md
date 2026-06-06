@@ -22,6 +22,8 @@ pwsh -NoProfile -File "$env:GROK_PLUGIN_ROOT\lib\repl-invoke.ps1" -Method <metho
 
 (Bash equivalent: `source "$GROK_PLUGIN_ROOT/lib/repl-invoke.sh" && repl_invoke "<method>" "<yaml params>"`.)
 
+Do not search for literal `workflow.sessionlog.*` Grok tools. These are shim/REPL method names used by the plugin helper; `search_tool` may show host tools such as `pwsh` plus configured MCP tools with native names such as `sessionlog_submit`, `todo_list`, and `requirements_generate`.
+
 Why the shim and not raw stdio:
 
 - `workflow.sessionlog.beginTurn` and `openSession` are **not server routes**. Calling them raw returns `method_invocation_error` / `method_not_found`. The shim treats them as local no-ops and tracks turn state in `cache/current-turn.yaml`.

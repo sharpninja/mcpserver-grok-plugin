@@ -533,4 +533,16 @@ WORKFLOW_SKILLS=(sync-logs commit-sync wrap-up)
     else
         [ -d "$SKILLS_DIR" ]
     fi
+
+    grep -q '"skills"' "$SCRIPT_DIR/.grok-plugin/plugin.json"
+    grep -q '"hooks"' "$SCRIPT_DIR/.grok-plugin/plugin.json"
+    grep -q '"mcpServers"' "$SCRIPT_DIR/.grok-plugin/plugin.json"
+    grep -q '.mcp.json' "$SCRIPT_DIR/.grok-plugin/plugin.json"
+
+    grep -q '"mcpServers": "./.mcp.json"' "$SCRIPT_DIR/.claude-plugin/plugin.json"
+    grep -q '"mcpserver"' "$SCRIPT_DIR/.mcp.json"
+    grep -q '"type": "http"' "$SCRIPT_DIR/.mcp.json"
+    grep -q 'mcp-transport' "$SCRIPT_DIR/.mcp.json"
+    ! grep -q 'mcpserver-repl' "$SCRIPT_DIR/.mcp.json"
+    ! grep -q -- '--agent-stdio' "$SCRIPT_DIR/.mcp.json"
 }

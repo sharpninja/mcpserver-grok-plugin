@@ -9,5 +9,8 @@
   "homepage": "https://github.com/sharpninja/mcpserver-grok-plugin",
   "repository": "https://github.com/sharpninja/mcpserver-grok-plugin",
   "license": "MIT",
-  "keywords": ["mcp", "grok", "todo", "session-log", "requirements", "graphrag", "workspace"]
+  "keywords": ["mcp", "grok", "todo", "session-log", "requirements", "graphrag", "workspace"],
+  "skills": "./skills/",
+  "hooks": { "path": "hooks/hooks.json" },
+  "mcpServers": "./.mcp.json"
 }

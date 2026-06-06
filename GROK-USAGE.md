@@ -5,7 +5,7 @@ This directory is a fork/adaptation of `mcpserver-claude-code-plugin` for the **
 It provides:
 
 - Native Grok `SKILL.md` files under `skills/` (todo, session, requirements, graphrag, workspace).
-- Full contract parity with the McpServer REPL (`workflow.*` namespaces) via optional `mcpserver-repl --agent-stdio`.
+- Discoverable MCP tools through the Streamable HTTP endpoint in `.mcp.json`, plus full contract parity with the McpServer workflow shim (`workflow.*` namespaces) via plugin helpers.
 - Hook scripts and lib/ (bash reference implementation + pwsh emphasis for this workspace).
 - Offline cache support and marker bootstrap logic (signature + nonce) exactly as required by `AGENTS-README-FIRST.yaml`.
 
@@ -13,7 +13,7 @@ It provides:
 
 1. Copy or symlink the contents of `skills/` into your personal Grok skills location (`~/.grok/skills` or a marketplace plugin directory).
 2. Grok will discover the skills on next start / relevant prompt (e.g. "start session", "create a todo", "list requirements").
-3. For full session logging, TODO, and requirements features, ensure `mcpserver-repl` (the dotnet global tool) is available on PATH.
+3. Use `grok inspect`, `grok mcp doctor mcpserver`, or `/mcps` to confirm the enabled plugin exposes the `mcpserver` MCP entry. The MCP entry should connect to `http://localhost:7147/mcp-transport`; workflow shim helpers still require `mcpserver-repl` (the dotnet global tool) on PATH.
 
 Preferred runtime in this workspace: **PowerShell 7+ (`pwsh.exe`)** + the existing `McpSession.psm1`, `McpTodo.psm1`, `McpContext.psm1` modules. The bash hooks are retained for compatibility with Claude/Codex/Copilot agents that use the original plugin.
 
@@ -30,13 +30,15 @@ See `hooks/scripts/session-start.sh` (and the Grok skills) for the reference imp
 
 ## Session / Turn Lifecycle (GrokCode)
 
-Use the **session** skill (or the underlying `workflow.sessionlog.*` methods) with the canonical naming:
+Use the **session** skill (or the plugin shim for the underlying `workflow.sessionlog.*` methods) with the canonical naming:
 
 - SessionId: `GrokCode-YYYYMMDDTHHMMSSZ-slug`
 - RequestId: `req-YYYYMMDDTHHMMSSZ-slug`
 - `sourceType` / agent prefix: `GrokCode` (Pascal-Case)
 
 All design decisions must be logged as `appendDialog` (category: decision) **and** `appendActions` (type: design_decision).
+
+The `workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` names are plugin shim/REPL method names. They are not expected to appear as literal Grok `search_tool` results. If the TUI exposes `pwsh` but not a dedicated workflow tool, call `lib\repl-invoke.ps1` from this plugin root with `-Method <workflow.method>` and YAML params.
 
 ## TODO / Requirements
 
@@ -52,14 +54,14 @@ Ad-hoc ingestion and workspace policy helpers are provided via the respective sk
 
 - Primary interface is Grok `SKILL.md` files (not Claude hooks/skills system).
 - Strong emphasis on `pwsh.exe` and the workspace PowerShell modules.
-- Bash hooks and `mcpserver-repl` transport retained for contract fidelity and multi-agent use.
+- Bash hooks and `mcpserver-repl` helper usage retained for contract fidelity and multi-agent workflow shim use.
 - Cache/ is shipped clean; runtime state lives in the user's environment.
 - No assumption of `CLAUDE_PLUGIN_ROOT` or Claude-specific env vars (Grok equivalents are `PLUGIN_ROOT` / `MCP_GROK_*`).
 
 ## Development / Validation
 
 - Original `tests/` (bats) are retained from the source for contract regression coverage.
-- Grok-specific validation: load the SKILL.md files, exercise the core methods via `mcpserver-repl` or the PowerShell modules, and confirm marker bootstrap + session/turn lifecycle.
+- Grok-specific validation: load the SKILL.md files, confirm `grok mcp doctor mcpserver` succeeds against `/mcp-transport`, exercise the workflow shim methods via `mcpserver-repl` helpers or the PowerShell modules, and confirm marker bootstrap + session/turn lifecycle.
 - See `Plugin-Validation-Testing-Plan.md` (source document, with Grok notes added).
 
 ## License
