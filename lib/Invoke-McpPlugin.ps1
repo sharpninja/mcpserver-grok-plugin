@@ -16,11 +16,13 @@ param(
 
     [string]$WorkspacePath = $(if ($env:MCP_WORKSPACE_PATH) { $env:MCP_WORKSPACE_PATH } elseif ($env:MCPSERVER_WORKSPACE_PATH) { $env:MCPSERVER_WORKSPACE_PATH } elseif ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).ProviderPath }),
 
-    [string]$PluginRoot = $(if ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { Split-Path -Parent $PSScriptRoot }),
+    [string]$PluginRoot = $(if ($env:MCP_PLUGIN_ROOT) { $env:MCP_PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { Split-Path -Parent $PSScriptRoot }),
 
     [string]$CacheRoot,
 
-    [string]$BashPath
+    [string]$BashPath,
+
+    [int]$TimeoutSeconds = $(if ($env:MCP_PLUGIN_TIMEOUT_SECONDS) { [int]$env:MCP_PLUGIN_TIMEOUT_SECONDS } else { 90 })
 )
 
 Set-StrictMode -Version Latest
@@ -54,19 +56,22 @@ function Resolve-BashExecutable {
         return (Resolve-FullPath $env:BASH)
     }
 
-    $gitBash = Join-Path ${env:ProgramFiles} 'Git\bin\bash.exe'
-    if (Test-Path -LiteralPath $gitBash) {
-        return $gitBash
+    foreach ($root in @(${env:ProgramFiles}, ${env:ProgramFiles(x86)})) {
+        if (-not $root) {
+            continue
+        }
+
+        $gitBash = Join-Path $root 'Git\bin\bash.exe'
+        if (Test-Path -LiteralPath $gitBash) {
+            return $gitBash
+        }
     }
 
-    $command = Get-Command bash.exe -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
-    }
-
-    $fallback = Get-Command bash -ErrorAction SilentlyContinue
-    if ($fallback) {
-        return $fallback.Source
+    foreach ($name in @('bash.exe', 'bash')) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        if ($command) {
+            return $command.Source
+        }
     }
 
     throw 'Unable to find bash. Install Git for Windows or pass -BashPath.'
@@ -145,10 +150,12 @@ function Invoke-BashPluginScript {
     foreach ($argument in $Arguments) {
         $startInfo.ArgumentList.Add($argument)
     }
+    $startInfo.Environment['MCP_PLUGIN_ROOT'] = $pluginRootFull
     $startInfo.Environment['CLAUDE_PLUGIN_ROOT'] = $pluginRootFull
     $startInfo.Environment['PLUGIN_ROOT_OVERRIDE'] = $cacheRootFull
     $startInfo.Environment['MCP_WORKSPACE_PATH'] = $workspaceFull
     $startInfo.Environment['MCPSERVER_WORKSPACE_PATH'] = $workspaceFull
+    $startInfo.Environment['MCP_WORKSPACE_START_DIR'] = $workspaceFull
     $startInfo.Environment['CLAUDE_PROJECT_DIR'] = $workspaceFull
 
     $process = [System.Diagnostics.Process]::new()
@@ -160,9 +167,22 @@ function Invoke-BashPluginScript {
     }
     $process.StandardInput.Close()
 
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $boundedTimeout = [Math]::Max(1, $TimeoutSeconds)
+    if (-not $process.WaitForExit($boundedTimeout * 1000)) {
+        try {
+            if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+                & "$env:WINDIR\System32\taskkill.exe" /PID $process.Id /T /F > $null 2> $null
+            } else {
+                $process.Kill($true)
+            }
+        } catch {
+        }
+        throw "Plugin command timed out after ${boundedTimeout}s."
+    }
+    $stdout = $stdoutTask.Result
+    $stderr = $stderrTask.Result
 
     if ($stderr.Length -gt 0) {
         [Console]::Error.Write($stderr)
@@ -179,9 +199,26 @@ function Invoke-BashPluginScript {
 
 $pluginRootFull = Resolve-FullPath $PluginRoot
 
+function Resolve-StatusScript {
+    param([Parameter(Mandatory)][string]$Root)
+
+    if ($env:MCP_STATUS_SCRIPT -and (Test-Path -LiteralPath $env:MCP_STATUS_SCRIPT)) {
+        return $env:MCP_STATUS_SCRIPT
+    }
+
+    $libDir = Join-Path $Root 'lib'
+    $candidate = Get-ChildItem -LiteralPath $libDir -Filter 'mcp.*.status.sh' -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($candidate) {
+        return $candidate.FullName
+    }
+
+    return (Join-Path $libDir 'mcp-status.sh')
+}
+
 switch ($Command) {
     'Status' {
-        Invoke-BashPluginScript -ScriptPath (Join-Path $pluginRootFull 'lib\mcp.claude.status.sh')
+        Invoke-BashPluginScript -ScriptPath (Resolve-StatusScript -Root $pluginRootFull)
     }
     'Invoke' {
         if (-not $Method) {

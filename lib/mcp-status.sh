@@ -3,13 +3,44 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$SCRIPT_PLUGIN_ROOT}"
-CACHE_ROOT="${PLUGIN_ROOT_OVERRIDE:-$CLAUDE_PLUGIN_ROOT}"
-WORKSPACE_PATH="${MCP_WORKSPACE_PATH:-${MCPSERVER_WORKSPACE_PATH:-${CLAUDE_PROJECT_DIR:-$(pwd)}}}"
+# Optional host knob defaults; the canonical core never hardcodes a host.
+if [ -f "$SCRIPT_DIR/plugin-env.sh" ]; then
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/plugin-env.sh" 2>/dev/null || true
+fi
+MCP_PLUGIN_ROOT="${MCP_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$SCRIPT_PLUGIN_ROOT}}"
+CACHE_ROOT="${PLUGIN_ROOT_OVERRIDE:-$MCP_PLUGIN_ROOT}"
+WORKSPACE_PATH="${MCP_WORKSPACE_PATH:-${MCPSERVER_WORKSPACE_PATH:-${MCP_WORKSPACE_START_DIR:-${CLAUDE_PROJECT_DIR:-$(pwd)}}}}"
+
+# Status label derives from this file's name (mcp.<host>.status.sh -> 
+# mcp.<host>.status); falls back to MCP_STATUS_LABEL, then a generic label.
+_mcp_status_label() {
+    local base
+    base="$(basename "${BASH_SOURCE[0]:-$0}")"
+    case "$base" in
+        mcp.*.status.sh) printf '%s' "${base%.sh}" ;;
+        *) printf '%s' "${MCP_STATUS_LABEL:-mcp.plugin.status}" ;;
+    esac
+}
+MCP_STATUS_LABEL="$(_mcp_status_label)"
+
+# PowerShell wrapper name: prefer the host-named wrapper sitting next to
+# this script, fall back to the canonical Invoke-McpPlugin.ps1.
+_mcp_status_wrapper_name() {
+    local candidate
+    for candidate in "$SCRIPT_DIR"/Invoke-*McpPlugin.ps1; do
+        if [ -f "$candidate" ]; then
+            basename "$candidate"
+            return 0
+        fi
+    done
+    printf 'Invoke-McpPlugin.ps1'
+}
+MCP_PS_WRAPPER_NAME="${MCP_PS_WRAPPER_NAME:-$(_mcp_status_wrapper_name)}"
 
 # shellcheck source=./cache-scope.sh
 source "$SCRIPT_DIR/cache-scope.sh"
-cache_scope_init "$CLAUDE_PLUGIN_ROOT" "$WORKSPACE_PATH"
+cache_scope_init "$MCP_PLUGIN_ROOT" "$WORKSPACE_PATH"
 
 # shellcheck source=./marker-resolver.sh
 source "$SCRIPT_DIR/marker-resolver.sh"
@@ -71,10 +102,10 @@ fi
 session_file="$CACHE_DIR/session-state.yaml"
 turn_file="$CACHE_DIR/current-turn.yaml"
 repl_path="$(command -v mcpserver-repl 2>/dev/null || true)"
-wrapper_path="./lib/Invoke-ClaudeMcpPlugin.ps1"
+wrapper_path="./lib/${MCP_PS_WRAPPER_NAME}"
 
-printf 'mcp.claude.status:\n'
-printf '  pluginRoot: %s\n' "$(yaml_quote "$CLAUDE_PLUGIN_ROOT")"
+printf '%s:\n' "$MCP_STATUS_LABEL"
+printf '  pluginRoot: %s\n' "$(yaml_quote "$MCP_PLUGIN_ROOT")"
 printf '  cacheRoot: %s\n' "$(yaml_quote "$CACHE_ROOT")"
 printf '  workspacePath: %s\n' "$(yaml_quote "${MCP_PLUGIN_WORKSPACE_PATH:-$WORKSPACE_PATH}")"
 printf '  cacheDir: %s\n' "$(yaml_quote "$CACHE_DIR")"
