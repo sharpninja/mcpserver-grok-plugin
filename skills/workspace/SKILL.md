@@ -8,11 +8,11 @@ version: 0.1.0
 
 Initialize an MCP Server workspace only after proving whether it is already registered.
 
-Use single-line JSON request envelopes for direct `mcpserver-repl --agent-stdio` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `repl_invoke`, pass the helper's params body exactly as documented; the wrapper validates and envelopes it.
+Use single-line JSON request envelopes for direct `PowerShell.MCP wrapper` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `Invoke-McpPlugin.ps1`, pass the helper's params body exactly as documented; the wrapper validates and envelopes it.
 
 ## Trust Source
 
-Prefer a trusted existing marker from the active workspace. If the target workspace already has `AGENTS-README-FIRST.yaml`, validate it with `lib/marker-resolver.sh` before any MCP call. A trusted marker means the workspace is already registered enough to continue normal plugin bootstrap.
+Prefer a trusted existing marker from the active workspace. If the target workspace already has `AGENTS-README-FIRST.yaml`, validate it with `lib/marker-resolver.ps1` before any MCP call. A trusted marker means the workspace is already registered enough to continue normal plugin bootstrap.
 
 If the target workspace has no marker or the marker is untrusted, use another trusted control workspace marker to call the workspace lifecycle API. Do not use a marker from the untrusted target as credentials.
 
@@ -28,28 +28,28 @@ If the target workspace has no marker or the marker is untrusted, use another tr
 8. Re-read and validate the target `AGENTS-README-FIRST.yaml`.
 9. Only after validation succeeds, resume session log, TODO, and requirements writes through the plugin.
 
-## Bash / PowerShell Plugin Example (Grok preferred)
+## PowerShell / PowerShell Plugin Example (Grok preferred)
 
 ```powershell
 # Grok / pwsh (recommended for this workspace)
 cd F:\GitHub\McpServer
 $env:PLUGIN_ROOT = 'F:\GitHub\mcpserver-grok-plugin'
 $env:PLUGIN_ROOT_OVERRIDE = $env:PLUGIN_ROOT
-. "$env:PLUGIN_ROOT\lib\marker-resolver.ps1"   # or the bash version via WSL/Git Bash if needed
+. "$env:PLUGIN_ROOT\lib\marker-resolver.ps1"   # or the PowerShell version via WSL/Git PowerShell if needed
 full_bootstrap F:\GitHub\McpServer
 . "$env:PLUGIN_ROOT\lib\repl-invoke.ps1"
-repl_invoke "client.Workspace.ListAsync" ""
+Invoke-McpPlugin.ps1 "client.Workspace.ListAsync" ""
 ```
 
-The original bash/CLAUDE_PLUGIN_ROOT example is retained below for cross-agent compatibility with the source plugin.
-```bash
+The original PowerShell/MCP_PLUGIN_ROOT example is retained below for cross-agent compatibility with the source plugin.
+```powershell
 cd /f/GitHub/McpServer
 export CLAUDE_PLUGIN_ROOT=/f/GitHub/mcpserver-claude-code-plugin
 export PLUGIN_ROOT_OVERRIDE="$CLAUDE_PLUGIN_ROOT"
-source "$CLAUDE_PLUGIN_ROOT/lib/marker-resolver.sh"
+source "$CLAUDE_PLUGIN_ROOT/lib/marker-resolver.ps1"
 full_bootstrap /f/GitHub/McpServer
-source "$CLAUDE_PLUGIN_ROOT/lib/repl-invoke.sh"
-repl_invoke "client.Workspace.ListAsync" ""
+source "$CLAUDE_PLUGIN_ROOT/lib/repl-invoke.ps1"
+Invoke-McpPlugin.ps1 "client.Workspace.ListAsync" ""
 ```
 
 ## Create If Missing
@@ -69,7 +69,7 @@ payload:
       isEnabled: true
 ```
 
-The equivalent `repl_invoke` parameter body is:
+The equivalent `Invoke-McpPlugin.ps1` parameter body is:
 
 ```yaml
 request:
