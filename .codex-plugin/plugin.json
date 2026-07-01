@@ -1,6 +1,6 @@
 {
   "name": "mcpserver-grok",
-  "version": "1.25.0",
+  "version": "1.29.0",
   "description": "Connect Grok CLI/TUI agents to McpServer for session logging, TODO management, requirements tracking, and workspace continuity.",
   "author": {
     "name": "Payton Byrd (The Sharp Ninja)",
