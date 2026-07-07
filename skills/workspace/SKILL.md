@@ -1,6 +1,6 @@
 ---
 name: Workspace Initialization
-description: This skill should be used when the user asks to "initialize workspace", "register workspace", "add workspace", "create workspace marker", or "bootstrap MCP workspace"
+description: Use when the user asks to "initialize workspace", "register workspace", "add workspace", "create workspace marker", or "bootstrap MCP workspace"
 version: 0.1.0
 ---
 
@@ -8,7 +8,7 @@ version: 0.1.0
 
 Initialize an MCP Server workspace only after proving whether it is already registered.
 
-Use single-line JSON request envelopes for direct `PowerShell.MCP wrapper` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `Invoke-McpPlugin.ps1`, pass the helper's params body exactly as documented; the wrapper validates and envelopes it.
+Use single-line JSON request envelopes for direct `PowerShell.MCP wrapper` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `Invoke-McpPlugin.ps1`, pass the helper's params body exactly as documented; the wrapper validates and envelopes it. The examples here are written in YAML so folded strings, arrays, and nested request objects keep their intended shape.
 
 ## Trust Source
 
@@ -28,28 +28,30 @@ If the target workspace has no marker or the marker is untrusted, use another tr
 8. Re-read and validate the target `AGENTS-README-FIRST.yaml`.
 9. Only after validation succeeds, resume session log, TODO, and requirements writes through the plugin.
 
-## PowerShell / PowerShell Plugin Example (Grok preferred)
+## PowerShell Plugin Example
+
+Run plugin execution in PowerShell 7+ (`pwsh`). Point the plugin root at the active plugin's install directory; the wrapper reads `PLUGIN_ROOT_OVERRIDE`.
 
 ```powershell
-# Grok / pwsh (recommended for this workspace)
 cd F:\GitHub\McpServer
-$env:PLUGIN_ROOT = 'F:\GitHub\mcpserver-grok-plugin'
+$env:PLUGIN_ROOT = 'F:\GitHub\mcpserver-<agent>-plugin'   # the active plugin's install root
 $env:PLUGIN_ROOT_OVERRIDE = $env:PLUGIN_ROOT
-. "$env:PLUGIN_ROOT\lib\marker-resolver.ps1"   # or the PowerShell version via WSL/Git PowerShell if needed
+. "$env:PLUGIN_ROOT\lib\marker-resolver.ps1"
 full_bootstrap F:\GitHub\McpServer
 . "$env:PLUGIN_ROOT\lib\repl-invoke.ps1"
 Invoke-McpPlugin.ps1 "client.Workspace.ListAsync" ""
 ```
 
-The original PowerShell/MCP_PLUGIN_ROOT example is retained below for cross-agent compatibility with the source plugin.
-```powershell
-cd /f/GitHub/McpServer
-export CLAUDE_PLUGIN_ROOT=/f/GitHub/mcpserver-claude-code-plugin
-export PLUGIN_ROOT_OVERRIDE="$CLAUDE_PLUGIN_ROOT"
-source "$CLAUDE_PLUGIN_ROOT/lib/marker-resolver.ps1"
-full_bootstrap /f/GitHub/McpServer
-source "$CLAUDE_PLUGIN_ROOT/lib/repl-invoke.ps1"
-Invoke-McpPlugin.ps1 "client.Workspace.ListAsync" ""
+## Request Envelopes
+
+Send the same request shape through your agent's active MCP bridge. If using the bundled REPL bridge directly for diagnosis, send one single-line JSON request object and target `client.Workspace.ListAsync`, `client.Workspace.CreateAsync`, or `client.Workspace.InitAsync`. The list call takes empty params:
+
+```yaml
+type: request
+payload:
+  requestId: req-20260515T115959Z-workspace-list-001
+  method: client.Workspace.ListAsync
+  params: {}
 ```
 
 ## Create If Missing
