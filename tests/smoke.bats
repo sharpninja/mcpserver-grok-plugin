@@ -7,6 +7,13 @@
 # by VALIDATION MODEL C: the shared-lib behavior itself is proven by the core
 # fixtures, so here we only assert the wrappers load the core and degrade
 # gracefully (exit 0 + valid JSON) with no network and no marker.
+#
+# IMPORTANT — production Grok path is PowerShell:
+#   hooks/hooks.json runs hooks/scripts/*.ps1 via pwsh (plugin-hook.ps1).
+#   This suite only exercises the bash Model C shims (session-start.sh /
+#   user-prompt-submit.sh). A green BATS result does NOT prove the live .ps1
+#   turn lifecycle, dedupe, or fail-closed statuses. See lib/GAPS.md for
+#   dual-stack deltas.
 
 bats_require_minimum_version 1.5.0
 

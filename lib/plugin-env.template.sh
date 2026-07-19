@@ -18,11 +18,11 @@
 #                                                          ROOT     CLAUDE_   CLAUDE_PLUGIN_ROOT
 #                                                                   PLUGIN_
 #                                                                   ROOT
-#   MCP_WORKSPACE_START_DIR   CLAUDE_       COWORK_WORKSPACE_PATH > pwd       pwd      CLAUDE_
-#   chain                     PROJECT_DIR   MCPSERVER_WORKSPACE_PATH >                 PROJECT_DIR
-#                             > pwd         MCP_WORKSPACE_PATH >                       > pwd
-#                                           CLAUDE_COWORK_WORKSPACE_PATH >
-#                                           CLAUDE_PROJECT_DIR > pwd
+#   MCP_WORKSPACE_START_DIR   CLAUDE_       COWORK_WORKSPACE_PATH > pwd       host-    GROK_WORKSPACE_PATH >
+#   chain                     PROJECT_DIR   MCPSERVER_WORKSPACE_PATH >       specific  GROK_PROJECT_DIR >
+#                             > pwd         MCP_WORKSPACE_PATH >                       CLAUDE_PROJECT_DIR >
+#                                           CLAUDE_COWORK_WORKSPACE_PATH >             MCPSERVER_WORKSPACE_PATH >
+#                                           CLAUDE_PROJECT_DIR > pwd                   MCP_WORKSPACE_PATH
 #   Wrapper script depth      hooks/scripts (../..) for claude-code, cowork,
 #                             copilot, grok; lib (..) for codex
 #
@@ -121,7 +121,14 @@ case "$MCP_PLUGIN_HOST" in
         PLUGIN_TAG="${PLUGIN_TAG:-grok}"
         MCP_HOOK_OUTPUT_MODE="${MCP_HOOK_OUTPUT_MODE:-hook}"
         MCP_PLUGIN_ROOT="${MCP_PLUGIN_ROOT:-${GROK_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}}"
-        _start_dir="$(_plugin_env_first_dir "${CLAUDE_PROJECT_DIR:-}" 2>/dev/null || true)"
+        # Align with lib/plugin-env.ps1 grok startChain (first existing directory wins).
+        _start_dir="$(_plugin_env_first_dir \
+            "${GROK_WORKSPACE_PATH:-}" \
+            "${GROK_PROJECT_DIR:-}" \
+            "${CLAUDE_PROJECT_DIR:-}" \
+            "${MCPSERVER_WORKSPACE_PATH:-}" \
+            "${MCP_WORKSPACE_PATH:-}" \
+            2>/dev/null || true)"
         MCP_PROMPT_REMINDER_BODY="${MCP_PROMPT_REMINDER_BODY:-$_PLUGIN_ENV_REMINDER_CLAUDE}"
         ;;
     *)

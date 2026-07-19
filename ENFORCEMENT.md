@@ -11,21 +11,30 @@ All enforcement behaviors align with the canonical v4 shared core defined in:
 
 ## Three-Phase Protocol
 
-Every user message triggers the v4 three-phase enforcement protocol:
+Every user message triggers the v4 three-phase enforcement protocol.
+
+**Production Grok wiring** is PowerShell: `hooks/hooks.json` invokes
+`hooks/scripts/*.ps1` → `lib/plugin-hook.ps1` (requires `pwsh`). Bash
+`hooks/scripts/*.sh` wrappers remain for Model C / multi-host portability and
+BATS smoke; they are **not** the live Grok host entrypoints unless
+`hooks.json` is changed. See `lib/GAPS.md` for dual-stack deltas.
 
 ### Phase 1 - Begin Turn (`UserPromptSubmit` hook)
-- `hooks/scripts/user-prompt-submit.sh` calls `workflow.sessionlog.beginTurn` via REPL
+- **Production:** `hooks/scripts/user-prompt-submit.ps1` → `plugin-hook.ps1` opens the turn (dedupe, fail-closed statuses when begin fails)
+- **Portable/Model C:** `hooks/scripts/user-prompt-submit.sh` → `hook-lib.sh` `user_prompt_submit_main` (bash degrade path exercised by `tests/smoke.bats`)
 - A `current-turn.yaml` file is written to the workspace cache so the Stop hook can verify completion
 - If the server is unavailable, the turn is buffered to the v4 failsafe cache
 
 ### Phase 2 - Edit + Verify (`PostToolUse` hook on Write/Edit)
-- `hooks/scripts/code-verify.sh` runs the project build after every file edit
+- **Production:** `hooks/scripts/code-verify.ps1` (and plan hooks) via `plugin-hook.ps1`
+- **Portable:** `hooks/scripts/code-verify.sh` / `plan-modified.sh` for hosts on the bash core
 - Build failure transitions the enforcement state to `BlockedOnBuild`
 - Build success is recorded in the session log action list (`appendActions`)
-- `hooks/scripts/plan-modified.sh` syncs plan file changes to MCP TODOs
 
 ### Phase 3 - Complete Turn (`Stop` hook)
-- `hooks/scripts/stop-gate.sh` verifies the turn was begun and not left open
+- **Production:** `hooks/scripts/stop-gate.ps1` via `plugin-hook.ps1`
+- **Portable:** `hooks/scripts/stop-gate.sh` → bash `stop_gate_main`
+- Verifies the turn was begun and not left open
 - If a prior build failed, the stop gate blocks the response (no escape hatch)
 - Successful completion calls `workflow.sessionlog.completeTurn`
 - If server is unavailable, the completion is buffered to failsafe cache
@@ -76,8 +85,10 @@ This plugin targets the `GrokCode` agent (`sourceType: GrokCode`). Session IDs u
 
 ## References
 
-- `hooks/hooks.json` - hook lifecycle wiring (SessionStart, UserPromptSubmit, Stop, PostToolUse, SessionEnd, PreCompact, PostCompact)
-- `lib/cache-scope.sh` - workspace key derivation (v4: `cache_scope_workspace_key_v4`, `cache_scope_v4_failsafe_root`)
+- `hooks/hooks.json` - **production** lifecycle wiring (pwsh → `*.ps1`)
+- `hooks/scripts/*.sh` - Model C / portable bash thin shims (see `tests/smoke.bats`)
+- `lib/GAPS.md` - intentional PowerShell vs bash dual-stack gaps
+- `lib/cache-scope.sh` - workspace key derivation (v4 failsafe helpers; runtime CACHE_DIR is flat agent root)
 - `lib/cache-manager.sh` - pending write/flush/recovery (MAX_RETRIES=3)
 - `lib/marker-resolver.sh` - HMAC-SHA256 marker trust (bash)
 - `lib/marker-resolver.ps1` - HMAC-SHA256 marker trust (PowerShell)

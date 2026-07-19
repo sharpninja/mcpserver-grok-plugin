@@ -1,5 +1,9 @@
 # lib-ps parity gaps (deliberate scope decisions)
 
+> **Operators:** production Grok hooks run PowerShell (`hooks/hooks.json` →
+> `*.ps1`). Green `bats tests/smoke.bats` only proves the bash Model C shims.
+> Do not assume full behavioral parity between stacks.
+
 The PowerShell side is a thin shim (~300 lines of logic vs ~4300 in
 lib-sh/repl-invoke.sh). Per the Phase 2 reconciliation report, only the
 items it marked "port NOW" were ported in this pass:
@@ -62,3 +66,16 @@ silently treat as parity debt):
   decision; their top-level `Invoke-{Codex,Copilot}McpPlugin.ps1` forks
   should be replaced by the merged `Invoke-McpPlugin.ps1` when that
   decision lands.
+
+## Grok dual-stack turn lifecycle (bash vs PowerShell)
+
+| Concern | Production PowerShell (`plugin-hook.ps1`) | Model C bash (`hook-lib.sh`) |
+|---|---|---|
+| Host entry | `hooks/hooks.json` → `*.ps1` | `hooks/scripts/*.sh` (smoke / portable hosts) |
+| Turn dedupe | Yes (`turn-already-open` within ~2 min) | No; rewrites `current-turn.yaml` |
+| beginTurn failure | Fail-closed statuses (`turn-open-failed`) | Often `cache_write` fallback + still emits open |
+| Workspace start env (grok) | `GROK_WORKSPACE_PATH`, `GROK_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, `MCPSERVER_WORKSPACE_PATH`, `MCP_WORKSPACE_PATH` | Same chain (aligned in `plugin-env.template.sh`) |
+| Runtime CACHE_DIR | Flat agent root / override | Flat agent root / override (not nested sessions tree) |
+| Validation | Prefer Pester / host checks | `bats tests/smoke.bats` |
+
+When changing turn open/complete behavior, update **both** stacks or explicitly document a one-stack-only change here.

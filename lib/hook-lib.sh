@@ -27,9 +27,11 @@ HOOK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #   flat   - CACHE_DIR from resolve_cache_dir (workspace/override anchored,
 #            no per-workspace/session subtree). Used by the session lifecycle
 #            and plan hooks (hooks.bats contract).
-#   scoped - CACHE_DIR from cache_scope_init (workspaces/<key>/sessions/<key>
-#            beneath the unified resolver root). Used by user-prompt-submit,
-#            stop-gate, and code-verify.
+#   scoped - CACHE_DIR from cache_scope_init. On current core this resolves to
+#            the flat workspace agent root (.mcpServer/<agent> or
+#            MCP_CACHE_DIR_OVERRIDE), not a nested workspaces/<key>/sessions/<key>
+#            tree. Session/workspace keys are still computed for failsafe and
+#            metadata. Used by user-prompt-submit, stop-gate, and code-verify.
 # Note: sourcing lib/repl-invoke.sh later re-runs cache_scope_init and
 # re-exports CACHE_DIR; entry functions intentionally use the live value of
 # $CACHE_DIR at write time, mirroring the original hook scripts.

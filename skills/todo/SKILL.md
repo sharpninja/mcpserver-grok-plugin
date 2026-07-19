@@ -8,7 +8,7 @@ version: 0.1.0
 
 ## Overview
 
-To interact with project TODOs, use the `workflow.todo.*` REPL command namespace through `lib/repl-invoke.ps1` via the `PowerShell.MCP wrapper`. The wrapper accepts the documented params, validates them, and invokes `mcpserver-repl --agent-stdio` with a single-line JSON request envelope. Direct stdio callers must use the same shape: one single-line JSON request envelope per message, not formatted YAML. The server returns a `type: result` or `type: error` envelope on stdout. Streaming commands additionally emit a sequence of `type: event` envelopes before the final result.
+To interact with project TODOs, use the `workflow.todo.*` REPL command namespace via `lib/repl-invoke.ps1` (or `lib/repl-invoke.sh`). The plugin wrapper validates params, builds a single-line JSON request envelope, and runs `mcpserver-repl --agent-stdio`. Direct stdio callers must use the same shape: one single-line JSON request envelope per message, not formatted YAML. The server returns a `type: result` or `type: error` envelope on stdout. Streaming commands additionally emit a sequence of `type: event` envelopes before the final result.
 
 The YAML blocks in this skill illustrate the logical structure of each envelope for readability; the actual wire format is single-line JSON.
 
@@ -345,7 +345,7 @@ Common error codes:
 
 ## Implementation Notes
 
-- Use `Invoke-McpPlugin.ps1` from `lib/repl-invoke.ps1` to build and send envelopes via `PowerShell.MCP wrapper` / `mcpserver-repl --agent-stdio`.
+- Use `lib/repl-invoke.ps1` / `Invoke-McpPlugin.ps1` (or `lib/repl-invoke.sh`) to build envelopes and run `mcpserver-repl --agent-stdio`.
 - The `requestId` must match `^req-\d{8}T\d{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*$` for every envelope.
 - All streaming operations may be cancelled by closing stdin or sending a cancellation request; the REPL guarantees a final cancellation event before closing the stream.
 - After marking a TODO done, record the action in the active session log turn using `workflow.sessionlog.appendActions` with `type: edit` and the TODO ID as context.

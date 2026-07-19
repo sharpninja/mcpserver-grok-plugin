@@ -20,11 +20,47 @@ The plugin auto-installs `mcpserver-repl` (dotnet global tool) from GitHub relea
 
 ## Installation
 
+### Grok Build CLI (recommended)
+
 ```bash
-# Grok loads skills from ~/.grok/skills or marketplace plugins.
-# Copy or symlink the skills/ directory contents into your Grok skills location,
-# or use the Grok McpServer tools-bucket entry.
-# The hooks/ and lib/ provide optional bootstrap for agents that support bash hooks.
+# From a local checkout of this repo:
+grok plugin install /path/to/mcpserver-grok-plugin --trust
+grok plugin enable mcpserver
+
+# Optional: symlink core skills into ~/.grok/skills for slash discovery
+for s in todo session requirements graphrag workspace; do
+  ln -sfn /path/to/mcpserver-grok-plugin/skills/$s ~/.grok/skills/$s
+done
+```
+
+Grok loads skills from `~/.grok/skills`, installed plugins, and marketplace sources.
+Hooks live under `hooks/` (`hooks.json` + bash/PowerShell scripts). Shared lib is under `lib/`
+(`plugin-env.sh` / `plugin-env.ps1`, `hook-lib.sh`, `repl-invoke.sh` / `repl-invoke.ps1`).
+
+### MCP endpoint
+
+`.mcp.json` declares a Streamable HTTP MCP server:
+
+```json
+{
+  "mcpServers": {
+    "mcpserver": {
+      "type": "http",
+      "url": "http://localhost:7147/mcp-transport"
+    }
+  }
+}
+```
+
+Point this at your running McpServer instance. Confirm with `grok mcp doctor mcpserver` or `/mcps`.
+
+### Tests
+
+```bash
+# bats (user-local install is fine if apt bats is unavailable)
+bats tests/
+bats tests/skills.bats
+bats tests/smoke.bats
 ```
 
 ## How It Works

@@ -8,7 +8,7 @@ version: 0.1.0
 
 ## Overview
 
-To manage functional requirements (FR), technical requirements (TR), test requirements (TEST), and their traceability mappings, use this plugin's declared hook/wrapper (or the REPL transport via `mcpserver-repl --agent-stdio`) for the `workflow.requirements.*` namespace. Do not substitute raw REST calls, generic `PowerShell.MCP wrapper`, helper modules, or another agent's plugin for normal requirements work.
+To manage functional requirements (FR), technical requirements (TR), test requirements (TEST), and their traceability mappings, use this plugin's declared hook/wrapper (or the REPL transport via `mcpserver-repl --agent-stdio`) for the `workflow.requirements.*` namespace. Do not substitute raw REST calls, ad-hoc helpers, or another agent's plugin for normal requirements work.
 
 The plugin wrapper validates documented params and emits single-line JSON to `mcpserver-repl --agent-stdio`. Any direct REPL diagnostic call must use one single-line JSON request envelope, not formatted YAML.
 
