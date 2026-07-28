@@ -17,7 +17,11 @@ Every user message triggers the v4 three-phase enforcement protocol.
 `hooks/scripts/*.ps1` → `lib/plugin-hook.ps1` (requires `pwsh`). Bash
 `hooks/scripts/*.sh` wrappers remain for Model C / multi-host portability and
 BATS smoke; they are **not** the live Grok host entrypoints unless
-`hooks.json` is changed. See `lib/GAPS.md` for dual-stack deltas.
+`hooks.json` is changed. Shipped bash wrappers: `session-start.sh`,
+`user-prompt-submit.sh`, `code-verify.sh`, `plan-approved.sh`,
+`plan-modified.sh`, and `stop-gate.sh` (thin sources of `plugin-env.sh` +
+`hook-lib.sh`). Other hook names exist as `*_main` functions in
+`lib/hook-lib.sh` only. See `lib/GAPS.md` for dual-stack deltas.
 
 ### Phase 1 - Begin Turn (`UserPromptSubmit` hook)
 - **Production:** `hooks/scripts/user-prompt-submit.ps1` → `plugin-hook.ps1` opens the turn (dedupe, fail-closed statuses when begin fails)
@@ -27,13 +31,13 @@ BATS smoke; they are **not** the live Grok host entrypoints unless
 
 ### Phase 2 - Edit + Verify (`PostToolUse` hook on Write/Edit)
 - **Production:** `hooks/scripts/code-verify.ps1` (and plan hooks) via `plugin-hook.ps1`
-- **Portable:** `hooks/scripts/code-verify.sh` / `plan-modified.sh` for hosts on the bash core
+- **Portable/Model C:** `hooks/scripts/code-verify.sh` / `plan-modified.sh` / `plan-approved.sh` → `hook-lib.sh` (`code_verify_main`, `plan_modified_main`, `plan_approved_main`)
 - Build failure transitions the enforcement state to `BlockedOnBuild`
 - Build success is recorded in the session log action list (`appendActions`)
 
 ### Phase 3 - Complete Turn (`Stop` hook)
 - **Production:** `hooks/scripts/stop-gate.ps1` via `plugin-hook.ps1`
-- **Portable:** `hooks/scripts/stop-gate.sh` → bash `stop_gate_main`
+- **Portable/Model C:** `hooks/scripts/stop-gate.sh` → `hook-lib.sh` `stop_gate_main`
 - Verifies the turn was begun and not left open
 - If a prior build failed, the stop gate blocks the response (no escape hatch)
 - Successful completion calls `workflow.sessionlog.completeTurn`

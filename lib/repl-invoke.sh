@@ -9,6 +9,16 @@ set -uo pipefail
 # - the real client.* MCP methods exposed by mcpserver-repl
 
 REPL_INVOKE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load host knob defaults (PLUGIN_AGENT_DEFAULT=GrokCode, etc.) before agent
+# resolution so standalone `bash lib/repl-invoke.sh ...` calls do not fall back
+# to --agent default / Codex session identity. Idempotent when hooks already
+# sourced plugin-env.sh.
+if [ -z "${MCP_PLUGIN_ENV_LOADED:-}" ] && [ -f "${REPL_INVOKE_SCRIPT_DIR}/plugin-env.sh" ]; then
+    # shellcheck source=./plugin-env.sh
+    source "${REPL_INVOKE_SCRIPT_DIR}/plugin-env.sh"
+fi
+
 REPL_INVOKE_PLUGIN_ROOT="${MCP_PLUGIN_ROOT:-$(cd "$REPL_INVOKE_SCRIPT_DIR/.." && pwd)}"
 REPL_INVOKE_CACHE_DIR="${REPL_INVOKE_PLUGIN_ROOT}/cache"
 
@@ -2864,8 +2874,12 @@ let body = root && root.request && typeof root.request === "object" && !Array.is
   ? { ...root.request }
   : { ...root };
 if (body.section) {
+  // Preserve caller section names (Backend, Issues, Planning, ...).
+  // Only normalize the well-known UI / Backlog aliases.
   const normalized = String(body.section).toLowerCase();
-  body.section = normalized === "ui" ? "UI" : "Backlog";
+  if (normalized === "ui") body.section = "UI";
+  else if (normalized === "backlog") body.section = "Backlog";
+  else body.section = String(body.section);
 }
 process.stdout.write(JSON.stringify(body));
 ' 2>/dev/null && return 0
@@ -2905,16 +2919,17 @@ process.stdout.write(JSON.stringify(body));
         [ -z "$section" ] && return 0
         section="$(_repl_unquote "$section")"
         normalized="$(printf '%s' "$section" | tr '[:upper:]' '[:lower:]')"
+        # Preserve skill-documented sections (Backend, Issues, Planning, ...).
+        # Only normalize the well-known UI / Backlog aliases.
         case "$normalized" in
             backlog) section="Backlog" ;;
             ui) section="UI" ;;
-            *) section="Backlog" ;;
         esac
         _repl_todo_json_add_raw "section" "\"$(_repl_json_escape "$section")\""
     }
 
     _repl_todo_json_add_array() {
-        local key="$1" list_block single item items="" item_sep=""
+        local key="$1" list_block single item items="" item_sep="" stripped
         list_block="$(_repl_list_block_get "$params_yaml" "$key")"
         if [ -n "$list_block" ]; then
             while IFS= read -r item; do
@@ -2934,7 +2949,22 @@ EOF
             single="$(_repl_param_text "$params_yaml" "$key")"
             if [ -n "$single" ]; then
                 single="$(_repl_unquote "$single")"
-                items="\"$(_repl_json_escape "$single")\""
+                # Inline YAML/flow arrays: dependsOn: [MCP-AUTH-001, OTHER]
+                # must expand to multiple JSON strings, not one bracketed scalar.
+                stripped="$(printf '%s' "$single" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+                if printf '%s' "$stripped" | grep -Eq '^\[.*\]$'; then
+                    stripped="$(printf '%s' "$stripped" | sed 's/^\[//; s/\]$//')"
+                    while IFS= read -r item; do
+                        item="$(printf '%s' "$item" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/^"//; s/"$//; s/^'\''//; s/'\''$//')"
+                        [ -z "$item" ] && continue
+                        items="${items}${item_sep}\"$(_repl_json_escape "$item")\""
+                        item_sep=","
+                    done <<EOF
+$(printf '%s' "$stripped" | tr ',' '\n')
+EOF
+                else
+                    items="\"$(_repl_json_escape "$single")\""
+                fi
             fi
         fi
         [ -z "$items" ] && return 0
@@ -3744,7 +3774,11 @@ if(process.env.ACTIONS_B64){
     else if(cur&&line.includes(":")){const[k,...v]=line.split(":");cur[k.trim()]=v.join(":").trim().replace(/^["']|["']$/g,"");}
   }if(cur)actions.push(cur);
 }
-const turn={agent:src,sessionId:sid,turn:{requestId:rid,timestamp:ts,queryTitle:title,response:resp,status,model,tokenCount:0,actions}};
+const turnBody={requestId:rid,timestamp:ts,response:resp,status,model,tokenCount:0,actions};
+// TR-MCP-REPL-015: omit queryTitle when empty so failTurn / re-submit paths
+// do not clobber an existing server-side title with "".
+if(title && String(title).trim()) turnBody.queryTitle=title;
+const turn={agent:src,sessionId:sid,turn:turnBody};
 const env={type:"request",payload:{requestId:"req-"+Date.now().toString(16),method:"client.SessionLog.UpsertTurnAsync",params:turn}};
 console.log(JSON.stringify(env));
 NODEEOF
@@ -4152,6 +4186,53 @@ _repl_workflow_complete_turn() {
     printf 'type: error\npayload:\n'
     printf '  code: session_turn_persist_failed\n'
     printf '  message: completeTurn did not persist turn %s\n' "$req_id"
+    return 1
+}
+
+# TR-MCP-REPL-020: close the active turn as failed. Must not reuse completeTurn
+# (which always persists status: completed). Mirrors Invoke-WorkflowFailTurn.
+_repl_workflow_fail_turn() {
+    local params="$1"
+    local turn_file="${REPL_INVOKE_CACHE_DIR}/current-turn.yaml"
+    if [ ! -f "$turn_file" ]; then
+        printf 'type: error\npayload:\n'
+        printf '  code: missing_current_turn\n'
+        printf '  message: workflow.sessionlog.failTurn requires an open current-turn.yaml\n'
+        return 1
+    fi
+
+    local error_message error_code failure_note req_id
+    error_message="$(_repl_unquote "$(_repl_yaml_get "$params" "errorMessage")")"
+    if [ -z "$error_message" ]; then
+        error_message="$(_repl_unquote "$(_repl_yaml_get "$params" "failureNote")")"
+    fi
+    if [ -z "$error_message" ]; then
+        printf 'type: error\npayload:\n'
+        printf '  code: missing_error_message\n'
+        printf '  message: workflow.sessionlog.failTurn requires a non-empty errorMessage (or failureNote)\n'
+        return 1
+    fi
+
+    error_code="$(_repl_unquote "$(_repl_yaml_get "$params" "errorCode")")"
+    if [ -n "$error_code" ]; then
+        failure_note="${error_message} (errorCode: ${error_code})"
+    else
+        failure_note="$error_message"
+    fi
+
+    req_id="$(_repl_current_turn_value "turnRequestId")"
+    # Empty title: omit retitle so failing a turn never clobbers queryTitle
+    # (TR-MCP-REPL-015 / PowerShell Invoke-WorkflowFailTurn).
+    if _repl_persist_turn "$req_id" "" "failed" "$failure_note" ""; then
+        rm -f "$turn_file"
+        _repl_emit_response "  ok: true
+  status: failed"
+        return 0
+    fi
+
+    printf 'type: error\npayload:\n'
+    printf '  code: session_turn_persist_failed\n'
+    printf '  message: failTurn did not persist turn %s\n' "$req_id"
     return 1
 }
 
@@ -4613,8 +4694,12 @@ repl_invoke() {
             _repl_workflow_append_actions "$params_yaml"
             return $?
             ;;
-        workflow.sessionlog.completeTurn|workflow.sessionlog.failTurn)
+        workflow.sessionlog.completeTurn)
             _repl_workflow_complete_turn "$params_yaml"
+            return $?
+            ;;
+        workflow.sessionlog.failTurn)
+            _repl_workflow_fail_turn "$params_yaml"
             return $?
             ;;
         workflow.sessionlog.closeTurn)
@@ -4749,4 +4834,4 @@ fi
 export -f _repl_read_stdin_if_ready 2>/dev/null || true
 export -f _repl_turn_upsert_params 2>/dev/null || true
 
-export -f repl_invoke repl_build_envelope _repl_bool_to_enabled _repl_compat_marker_endpoint_field _repl_compat_marker_field _repl_create_compat_marker _repl_failsafe_clear _repl_failsafe_dir _repl_failsafe_plugin_name _repl_failsafe_workspace_root _repl_failsafe_write _repl_first_param_text _repl_internal_todo_is_enabled _repl_internal_todo_mode_value _repl_internal_todo_state_file _repl_invoke_raw _repl_invoke_raw_in_workspace _repl_invoke_with_fallback _repl_bootstrap_state _repl_emit_response _repl_generate_session_id _repl_json_array_block_get _repl_json_escape _repl_normalized_actions_block _repl_normalized_dialog_items_block _repl_param_text _repl_path_for_bash _repl_path_for_repl _repl_pending_import_file _repl_pending_import_todo_exists _repl_persist_turn _repl_records_block_get _repl_records_block_normalize _repl_requirements_acceptance_criteria_result_ok _repl_requirements_batch_ids _repl_requirements_batch_persisted_result_ok _repl_requirements_bootstrap_state _repl_requirements_copy_acceptance_http_fallback _repl_requirements_existing_for_update _repl_requirements_generate_http_fallback _repl_requirements_get_method_for_batch_id _repl_requirements_mutation_result_ok _repl_requirements_normalize_generate_response _repl_requirements_typed_doc_type _repl_requirements_typed_method _repl_requirements_typed_params _repl_requirements_update_get_method _repl_requirements_update_workflow_get_method _repl_requirements_workflow_doc_type _repl_requirements_workflow_get_method_for_batch_id _repl_requirements_workflow_params _repl_requirement_list_field _repl_response_has_empty_result _repl_response_is_error _repl_response_is_nonempty_success _repl_run_repl_with_timeout _repl_persistent_available _repl_persistent_native_path _repl_run_request_envelope _repl_session_meta _repl_session_state_value _repl_sessionlog_import_recovery_http_fallback _repl_sessionlog_submit_http_fallback _repl_state_value _repl_submit_session _repl_todo_http_fallback _repl_todo_json_body _repl_turns_block _repl_url_path_segment _repl_turn_bump _repl_count_lines _repl_turn_has_audit_schema _repl_turn_audit_missing _repl_workflow_audit _repl_workflow_close_turn _repl_workflow_append_actions _repl_workflow_append_dialog _repl_workflow_begin_turn _repl_workflow_bootstrap _repl_workflow_complete_turn _repl_workflow_import_pending _repl_workflow_import_recovery _repl_workflow_memory _repl_workflow_memory_is_mutation _repl_workflow_memory_append_action _repl_workflow_open_session _repl_workflow_query_history _repl_workflow_requirements _repl_workflow_requirements_is_mutation _repl_workflow_requirements_prefers_typed _repl_workflow_todo _repl_workflow_todo_internal_tracking _repl_workflow_todo_is_mutation _repl_workflow_todo_select _repl_workflow_todo_update_selected _repl_workflow_update_turn _repl_emit_acceptance_criteria_block _repl_emit_acceptance_criteria_hydrate _repl_has_acceptance_criteria_block _repl_yaml_block_get _repl_yaml_field _repl_yaml_get 2>/dev/null || true
+export -f repl_invoke repl_build_envelope _repl_bool_to_enabled _repl_compat_marker_endpoint_field _repl_compat_marker_field _repl_create_compat_marker _repl_failsafe_clear _repl_failsafe_dir _repl_failsafe_plugin_name _repl_failsafe_workspace_root _repl_failsafe_write _repl_first_param_text _repl_internal_todo_is_enabled _repl_internal_todo_mode_value _repl_internal_todo_state_file _repl_invoke_raw _repl_invoke_raw_in_workspace _repl_invoke_with_fallback _repl_bootstrap_state _repl_emit_response _repl_generate_session_id _repl_json_array_block_get _repl_json_escape _repl_normalized_actions_block _repl_normalized_dialog_items_block _repl_param_text _repl_path_for_bash _repl_path_for_repl _repl_pending_import_file _repl_pending_import_todo_exists _repl_persist_turn _repl_records_block_get _repl_records_block_normalize _repl_requirements_acceptance_criteria_result_ok _repl_requirements_batch_ids _repl_requirements_batch_persisted_result_ok _repl_requirements_bootstrap_state _repl_requirements_copy_acceptance_http_fallback _repl_requirements_existing_for_update _repl_requirements_generate_http_fallback _repl_requirements_get_method_for_batch_id _repl_requirements_mutation_result_ok _repl_requirements_normalize_generate_response _repl_requirements_typed_doc_type _repl_requirements_typed_method _repl_requirements_typed_params _repl_requirements_update_get_method _repl_requirements_update_workflow_get_method _repl_requirements_workflow_doc_type _repl_requirements_workflow_get_method_for_batch_id _repl_requirements_workflow_params _repl_requirement_list_field _repl_response_has_empty_result _repl_response_is_error _repl_response_is_nonempty_success _repl_run_repl_with_timeout _repl_persistent_available _repl_persistent_native_path _repl_run_request_envelope _repl_session_meta _repl_session_state_value _repl_sessionlog_import_recovery_http_fallback _repl_sessionlog_submit_http_fallback _repl_state_value _repl_submit_session _repl_todo_http_fallback _repl_todo_json_body _repl_turns_block _repl_url_path_segment _repl_turn_bump _repl_count_lines _repl_turn_has_audit_schema _repl_turn_audit_missing _repl_workflow_audit _repl_workflow_close_turn _repl_workflow_append_actions _repl_workflow_append_dialog _repl_workflow_begin_turn _repl_workflow_bootstrap _repl_workflow_complete_turn _repl_workflow_fail_turn _repl_workflow_import_pending _repl_workflow_import_recovery _repl_workflow_memory _repl_workflow_memory_is_mutation _repl_workflow_memory_append_action _repl_workflow_open_session _repl_workflow_query_history _repl_workflow_requirements _repl_workflow_requirements_is_mutation _repl_workflow_requirements_prefers_typed _repl_workflow_todo _repl_workflow_todo_internal_tracking _repl_workflow_todo_is_mutation _repl_workflow_todo_select _repl_workflow_todo_update_selected _repl_workflow_update_turn _repl_emit_acceptance_criteria_block _repl_emit_acceptance_criteria_hydrate _repl_has_acceptance_criteria_block _repl_yaml_block_get _repl_yaml_field _repl_yaml_get 2>/dev/null || true

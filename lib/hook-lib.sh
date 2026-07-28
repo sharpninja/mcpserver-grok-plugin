@@ -960,16 +960,35 @@ plan_approved_main() {
         plan_title="$(basename "$plan_file" .md)"
     fi
 
-    # Create TODO via REPL
-    local todo_params="title: ${plan_title}
+    # workflow.todo.create / client.Todo.CreateAsync require id, title, section,
+    # and priority. Mirror plugin-hook.ps1 New-PlanTodoId + Planning/medium.
+    local plan_slug todo_id
+    plan_slug="$(printf '%s' "$plan_title" | tr '[:lower:]' '[:upper:]' | sed 's/[^A-Z0-9]//g')"
+    [ -z "$plan_slug" ] && plan_slug="PLAN"
+    plan_slug="$(printf '%s' "$plan_slug" | cut -c1-40)"
+    todo_id="PLAN-${plan_slug}-001"
+
+    local todo_params="id: ${todo_id}
+title: ${plan_title}
+section: Planning
+priority: medium
+description:
+  - Plan approved from ${plan_file}
 source: plan
 planFile: ${plan_file}"
 
-    local todo_response todo_id
+    local todo_response created_id
     todo_response=$(repl_invoke "todo.create" "$todo_params" 2>/dev/null || echo "")
-    todo_id=$(echo "$todo_response" | grep '^id:' | head -1 | sed 's/^id:[[:space:]]*//' || echo "")
+    created_id=$(echo "$todo_response" | grep -E '^[[:space:]]*id:' | head -1 | sed 's/^[[:space:]]*id:[[:space:]]*//' | tr -d '"' || echo "")
+    [ -n "$created_id" ] && todo_id="$created_id"
 
-    # Persist the plan -> todo mapping
+    # Only persist a mapping when create produced a usable id (do not claim
+    # "created" with an empty todoId after a validation failure).
+    if [ -z "$todo_id" ]; then
+        hook_emit_event "PostToolUse" "create-failed" '"reason":"todo.create returned no id"'
+        exit 0
+    fi
+
     mkdir -p "$CACHE_DIR"
     if [ ! -f "$plan_map" ]; then
         cat > "$plan_map" << 'YAML'

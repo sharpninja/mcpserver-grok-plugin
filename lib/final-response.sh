@@ -21,4 +21,4 @@ _build_complete_params() {
     printf '%s\n' "$response" | sed 's/^/  /'
 }
 
-_build_complete_params | "$SCRIPT_DIR/repl-invoke.sh" workflow.sessionlog.completeTurn
+_build_complete_params | bash "$SCRIPT_DIR/repl-invoke.sh" workflow.sessionlog.completeTurn
