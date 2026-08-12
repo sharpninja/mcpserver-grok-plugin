@@ -4,7 +4,7 @@ This directory is a fork/adaptation of `mcpserver-claude-code-plugin` for the **
 
 It provides:
 
-- Native Grok `SKILL.md` files under `skills/` (todo, session, requirements, graphrag, workspace).
+- Native Grok `SKILL.md` files under `skills/` (todo, session, requirements, usecase, graphrag, workspace).
 - Discoverable MCP tools through the Streamable HTTP endpoint in `.mcp.json`, plus full contract parity with the McpServer workflow shim (`workflow.*` namespaces) via plugin helpers.
 - Hook scripts and lib/ (bash reference implementation + pwsh emphasis for this workspace).
 - Offline cache support and marker bootstrap logic (signature + nonce) exactly as required by `AGENTS-README-FIRST.yaml`.
