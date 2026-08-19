@@ -1,6 +1,6 @@
 {
   "name": "mcpserver",
-  "version": "1.86.0",
+  "version": "1.95.0",
   "description": "Connect Grok to McpServer for TODO management, session logging, requirements tracking, use case management, GraphRAG knowledge graph operations, and per-turn \u002B build-verification enforcement hooks.",
   "author": {
     "name": "Payton Byrd (The Sharp Ninja)",
