@@ -7,6 +7,15 @@
 # by VALIDATION MODEL C: the shared-lib behavior itself is proven by the core
 # fixtures, so here we only assert the wrappers load the core and degrade
 # gracefully (exit 0 + valid JSON) with no network and no marker.
+#
+# IMPORTANT — production Grok path is PowerShell:
+#   hooks/hooks.json runs hooks/scripts/*.ps1 via pwsh (plugin-hook.ps1).
+#   This suite only exercises the bash Model C shims (session-start.sh /
+#   user-prompt-submit.sh). A green BATS result does NOT prove the live .ps1
+#   turn lifecycle, dedupe, or fail-closed statuses. See lib/GAPS.md for
+#   dual-stack deltas.
+
+bats_require_minimum_version 1.5.0
 
 setup() {
     REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -16,20 +25,28 @@ setup() {
     USER_PROMPT_SUBMIT="$REPO_ROOT/hooks/scripts/user-prompt-submit.sh"
 
     # Isolated HOME + cwd with no AGENTS-README-FIRST.yaml so marker resolution
-    # fails, and a throwaway PLUGIN_ROOT_OVERRIDE so the cache lands in a temp
-    # dir (never the real repo cache/).
+    # fails. Cache must land in a temp dir via MCP_CACHE_DIR_OVERRIDE (current
+    # core contract; PLUGIN_ROOT_OVERRIDE/cache is no longer accepted).
     ISO_HOME="$(mktemp -d)"
     ISO_CWD="$(mktemp -d)"
-    export PLUGIN_ROOT_OVERRIDE="$(mktemp -d)"
+    export MCP_CACHE_DIR_OVERRIDE="$(mktemp -d)"
 }
 
 teardown() {
-    rm -rf "$ISO_HOME" "$ISO_CWD" "$PLUGIN_ROOT_OVERRIDE"
+    rm -rf "$ISO_HOME" "$ISO_CWD" "$MCP_CACHE_DIR_OVERRIDE"
 }
 
 # Run a wrapper in the isolated, marker-less environment with empty stdin.
+# Separate stderr so ensure-repl diagnostics (e.g. missing dotnet) do not
+# pollute the host JSON contract on stdout.
 run_wrapper() {
-    run env HOME="$ISO_HOME" bash -c "cd '$ISO_CWD' && bash '$1' </dev/null"
+    run --separate-stderr env \
+        -u CLAUDE_PLUGIN_ROOT -u MCP_PLUGIN_ROOT -u CLAUDE_PROJECT_DIR \
+        -u MCPSERVER_WORKSPACE_PATH -u MCP_WORKSPACE_PATH -u MCP_WORKSPACE_START_DIR \
+        HOME="$ISO_HOME" \
+        MCP_CACHE_DIR_OVERRIDE="$MCP_CACHE_DIR_OVERRIDE" \
+        MCP_PLUGIN_HOST=grok \
+        bash -c "cd '$ISO_CWD' && bash '$1' </dev/null"
 }
 
 assert_valid_json() {

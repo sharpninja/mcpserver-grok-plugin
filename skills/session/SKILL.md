@@ -8,7 +8,7 @@ version: 0.1.0
 
 ## Overview
 
-To manage agent session logs, use the `workflow.sessionlog.*` REPL command namespace through the plugin wrapper (`lib/repl-invoke.ps1` / `Invoke-McpPlugin.ps1`). Session logging captures agent activity, reasoning dialog, file operations, and design decisions as a structured audit trail.
+To manage agent session logs, use the `workflow.sessionlog.*` REPL command namespace through the plugin wrapper (`lib/repl-invoke.ps1` / `Invoke-McpPlugin.ps1`), which invokes `mcpserver-repl --agent-stdio`. Session logging captures agent activity, reasoning dialog, file operations, and design decisions as a structured audit trail.
 
 `workflow.sessionlog.*` is a plugin workflow/REPL namespace, not a literal native MCP tool namespace. Native McpServer `/mcp-transport` discovery uses names such as `sessionlog_*`, `todo_*`, and `requirements_*`; hosted-agent adapters may expose `mcp_session_*` aliases, and your agent's tool discovery may show configured MCP tools with native names such as `sessionlog_submit`, `todo_list`, and `requirements_generate`. Do not call this plugin unavailable solely because `workflow.*` names are absent from generic MCP discovery.
 
