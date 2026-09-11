@@ -8,7 +8,7 @@ version: 0.1.0
 
 Initialize an MCP Server workspace only after proving whether it is already registered.
 
-Use single-line JSON request envelopes for direct `PowerShell.MCP wrapper` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `Invoke-McpPlugin.ps1`, pass the helper's params body exactly as documented; the wrapper validates and envelopes it. The examples here are written in YAML so folded strings, arrays, and nested request objects keep their intended shape.
+Use single-line JSON request envelopes for direct `mcpserver-repl --agent-stdio` stdin. JSON is valid YAML and avoids indentation/block-scalar ambiguity. When using plugin wrapper helpers such as `lib/repl-invoke.ps1` / `Invoke-McpPlugin.ps1`, pass the helper's params body exactly as documented; the wrapper validates, envelopes, and invokes the REPL. The examples here are written in YAML so folded strings, arrays, and nested request objects keep their intended shape.
 
 ## Trust Source
 

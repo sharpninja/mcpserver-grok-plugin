@@ -15,7 +15,9 @@ It provides:
 2. Grok will discover the skills on next start / relevant prompt (e.g. "start session", "create a todo", "list requirements").
 3. Use `grok inspect`, `grok mcp doctor mcpserver`, or `/mcps` to confirm the enabled plugin exposes the `mcpserver` MCP entry. The MCP entry should connect to `http://localhost:7147/mcp-transport`; workflow shim helpers still require `mcpserver-repl` (the dotnet global tool) on PATH.
 
-Preferred runtime in this workspace: **PowerShell 7+ (`pwsh.exe`)** + the existing `McpSession.psm1`, `McpTodo.psm1`, `McpContext.psm1` modules. The bash hooks are retained for compatibility with Claude/Codex/Copilot agents that use the original plugin.
+Preferred runtime in this workspace: **PowerShell 7+ (`pwsh`)** via `hooks/hooks.json` → `hooks/scripts/*.ps1` → `lib/plugin-hook.ps1`.
+
+Bash `hooks/scripts/*.sh` + `lib/*.sh` are retained for **Model C** multi-host portability and BATS smoke (`tests/smoke.bats`). They are **not** what Grok runs in production unless you re-point `hooks.json`. Dual-stack behavior differences are listed in `lib/GAPS.md`.
 
 ## Bootstrap (Marker + Signature + Nonce)
 
@@ -26,7 +28,9 @@ The skills and hooks implement (or guide) the exact flow required by the workspa
 - Call `/health?nonce=...` and confirm echo
 - Only then open sessions, create TODOs, etc.
 
-See `hooks/scripts/session-start.sh` (and the Grok skills) for the reference implementation. On Grok, the skills perform equivalent checks where possible and fall back gracefully to `MCP_UNTRUSTED` / local-only mode when the server is unavailable (as required by policy).
+**Production reference:** `hooks/scripts/session-start.ps1` → `lib/plugin-hook.ps1` (and skills for guided bootstrap).  
+**Portable/Model C reference:** `hooks/scripts/session-start.sh` → `lib/hook-lib.sh`.  
+On Grok, skills perform equivalent checks where possible and fall back gracefully to `MCP_UNTRUSTED` / local-only mode when the server is unavailable (as required by policy).
 
 ## Session / Turn Lifecycle (GrokCode)
 
@@ -60,9 +64,10 @@ Ad-hoc ingestion and workspace policy helpers are provided via the respective sk
 
 ## Development / Validation
 
-- Original `tests/` (bats) are retained from the source for contract regression coverage.
-- Grok-specific validation: load the SKILL.md files, confirm `grok mcp doctor mcpserver` succeeds against `/mcp-transport`, exercise the workflow shim methods via `mcpserver-repl` helpers or the PowerShell modules, and confirm marker bootstrap + session/turn lifecycle.
-- See `Plugin-Validation-Testing-Plan.md` (source document, with Grok notes added).
+- `bats tests/` covers skills content + **bash** Model C smoke (not the live `.ps1` path).
+- Prefer a separate Pester / host check for PowerShell hooks when changing `plugin-hook.ps1`.
+- Grok-specific validation: load SKILL.md files, confirm `grok mcp doctor mcpserver` against `/mcp-transport`, exercise `mcpserver-repl` / `lib/repl-invoke.ps1`, confirm marker bootstrap + session/turn lifecycle.
+- See `Plugin-Validation-Testing-Plan.md` and `lib/GAPS.md`.
 
 ## License
 
