@@ -70,3 +70,7 @@ bats tests/skills.bats
 ## License
 
 MIT
+
+## External research
+
+See [GROK-USAGE.md](GROK-USAGE.md) and [`docs/research/perplexity-research-policy.md`](docs/research/perplexity-research-policy.md) for the Perplexity research policy used before planning and substantive documentation.
