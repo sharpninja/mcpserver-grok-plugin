@@ -38,11 +38,11 @@ Use the **session** skill (or the plugin shim for the underlying `workflow.sessi
 
 All design decisions must be logged as `appendDialog` (category: decision) **and** `appendActions` (type: design_decision).
 
-The `workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` names are plugin shim/REPL method names. They are not expected to appear as literal Grok `search_tool` results. If the TUI exposes `pwsh` but not a dedicated workflow tool, call `lib\\repl-invoke.ps1` from this plugin root with `-Method <workflow.method>` and YAML params.
+The `workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` names are plugin shim/REPL method names. They are not expected to appear as literal Grok `search_tool` results. If the TUI exposes `pwsh` but not a dedicated workflow tool, call `lib\repl-invoke.ps1` from this plugin root with `-Method <workflow.method>` and YAML params.
 
 ## TODO / Requirements
 
-The **todo** and **requirements** skills implement the full contract (create, query, streaming plan/implement/status, FR/TR/TEST mapping, canonical ID rules `^[A-Z]+-[A-Z0-9]+-\\d{3}$` or `ISSUE-\\d+`).
+The **todo** and **requirements** skills implement the full contract (create, query, streaming plan/implement/status, FR/TR/TEST mapping, canonical ID rules `^[A-Z]+-[A-Z0-9]+-\d{3}$` or `ISSUE-\d+`).
 
 Internal checklist state stays local by default. Enable `workflow.todo.internal.enable` only when you want MCP TODOs as the backing store.
 
