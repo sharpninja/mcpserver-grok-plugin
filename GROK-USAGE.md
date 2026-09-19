@@ -38,11 +38,11 @@ Use the **session** skill (or the plugin shim for the underlying `workflow.sessi
 
 All design decisions must be logged as `appendDialog` (category: decision) **and** `appendActions` (type: design_decision).
 
-The `workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` names are plugin shim/REPL method names. They are not expected to appear as literal Grok `search_tool` results. If the TUI exposes `pwsh` but not a dedicated workflow tool, call `lib\repl-invoke.ps1` from this plugin root with `-Method <workflow.method>` and YAML params.
+The `workflow.sessionlog.*`, `workflow.todo.*`, and `workflow.requirements.*` names are plugin shim/REPL method names. They are not expected to appear as literal Grok `search_tool` results. If the TUI exposes `pwsh` but not a dedicated workflow tool, call `lib\\repl-invoke.ps1` from this plugin root with `-Method <workflow.method>` and YAML params.
 
 ## TODO / Requirements
 
-The **todo** and **requirements** skills implement the full contract (create, query, streaming plan/implement/status, FR/TR/TEST mapping, canonical ID rules `^[A-Z]+-[A-Z0-9]+-\d{3}$` or `ISSUE-\d+`).
+The **todo** and **requirements** skills implement the full contract (create, query, streaming plan/implement/status, FR/TR/TEST mapping, canonical ID rules `^[A-Z]+-[A-Z0-9]+-\\d{3}$` or `ISSUE-\\d+`).
 
 Internal checklist state stays local by default. Enable `workflow.todo.internal.enable` only when you want MCP TODOs as the backing store.
 
@@ -71,3 +71,16 @@ MIT (same as source).
 ---
 
 Maintained as part of the McpServer workspace agent plugin ecosystem. The Grok contract has been registered in `MarkerFileService.BuildDefaultAgentPlugins`. After the next McpServer restart, `AGENTS-README-FIRST.yaml` will include the `Grok` entry and instruct GrokCode agents to bootstrap `mcpserver-grok-plugin` automatically.
+
+## External research (Perplexity)
+
+Before planning or making substantive documentation changes that depend on external facts, use Perplexity research when available. Prefer official sources. Record sources and distinguish verified facts from assumptions. Do not modify implementation code until the plan has been reviewed and explicitly approved.
+
+Canonical policy: `docs/research/perplexity-research-policy.md`  
+Workflow: `docs/research/research-to-plan-workflow.md`
+
+If Perplexity is unavailable, use the documented fallback and label the result:
+
+`Research provider: Perplexity unavailable — fallback process used.`
+
+This plugin does **not** require `PERPLEXITY_API_KEY` for installation or ordinary McpServer tool execution. Connect Perplexity MCP (or `pplx`) in the host agent client when you want live research.
