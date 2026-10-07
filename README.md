@@ -1,6 +1,6 @@
-# McpServer Grok Plugin
+# QBrain.AI Grok Plugin
 
-Connect [Grok 4.3](https://x.ai) coding agent CLI / TUI to [McpServer](https://github.com/sharpninja/McpServer) for workspace-scoped TODO management, session logging, requirements tracking, GraphRAG, and full agent session continuity.
+Connect [Grok 4.3](https://x.ai) coding agent CLI / TUI to [QBrain.AI](https://github.com/sharpninja/McpServer) for workspace-scoped TODO management, session logging, requirements tracking, GraphRAG, and full agent session continuity.
 
 ## Features
 
@@ -14,9 +14,9 @@ Connect [Grok 4.3](https://x.ai) coding agent CLI / TUI to [McpServer](https://g
 
 - [.NET 9.0 SDK](https://dotnet.microsoft.com/download)
 - [GitHub CLI](https://cli.github.com/) (`gh`) — authenticated
-- [McpServer](https://github.com/sharpninja/McpServer) running with a workspace configured
+- [QBrain.AI](https://github.com/sharpninja/McpServer) running with a workspace configured
 
-The plugin auto-installs `mcpserver-repl` (dotnet global tool) from GitHub releases on first use.
+The plugin uses `qbrain-ai-repl` when it is installed and otherwise `mcpserver-repl`. It auto-installs a REPL (dotnet global tool) from GitHub releases on first use.
 
 ## Installation
 
