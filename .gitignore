@@ -8,3 +8,5 @@ cache/workspaces/
 AGENTS-README-FIRST.yaml.deleted-*
 .claude/settings.local.json
 *.tmp
+AGENTS-README-FIRST.yaml
+.mcpServer/
